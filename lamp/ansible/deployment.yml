@@ -1,0 +1,37 @@
+- name: Build and Deploy LAMP Stack to Kubernetes using Shell
+  hosts: localhost
+  become: false
+  tasks:
+
+    - name: Build custom Apache+PHP image
+      shell: |
+        docker build -t custom-apache ../docker/apache
+
+    - name: Build custom MySQL image
+      shell: |
+        docker build -t custom-mysql ../docker/mysql
+
+    - name: Set Docker environment for Minikube
+      shell: |
+        eval $(minikube docker-env)
+      register: docker_env
+
+    - name: Print Docker environment setup (optional)
+      debug:
+        msg: "{{ docker_env.stdout }}"
+
+    - name: Apply MySQL Deployment
+      shell: |
+        kubectl apply -f ../k8s/mysql-deployment.yml
+
+    - name: Apply MySQL Service
+      shell: |
+        kubectl apply -f ../k8s/mysql-service.yml
+
+    - name: Apply Apache Deployment
+      shell: |
+        kubectl apply -f ../k8s/apache-deployment.yml
+
+    - name: Apply Apache Service
+      shell: |
+        kubectl apply -f ../k8s/apache-service.yml

@@ -1,0 +1,46 @@
+- name: Deploy LAMP stack from Docker Hub to Minikube
+  hosts: localhost
+  vars:
+    k8s_dir: /home/ashu304/task9/lamp/kubernetes
+
+  tasks:
+    - name: Apply Kubernetes manifests
+      shell: kubectl apply -f {{ k8s_dir }}
+
+    - name: Wait for MariaDB pod to be ready
+      shell: |
+        until kubectl get pods -l app=mariadb -o jsonpath='{.items[0].status.containerStatuses[0].ready}' | grep true; do
+          echo "Waiting for MariaDB pod to be ready..."
+          sleep 5
+        done
+
+    - name: Create database "testdb" in MariaDB
+      shell: |
+        POD=$(kubectl get pods -l app=mariadb -o jsonpath='{.items[0].metadata.name}')
+        kubectl exec -it $POD -- mariadb -uroot -prootpass -e "CREATE DATABASE IF NOT EXISTS testdb;"
+
+    - name: Grant remote access to root user in MariaDB
+      shell: |
+        POD=$(kubectl get pods -l app=mariadb -o jsonpath='{.items[0].metadata.name}')
+        kubectl exec -it $POD -- mariadb -uroot -prootpass -e "GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'rootpass' WITH GRANT OPTION; FLUSH PRIVILEGES;"
+
+    - name: Get NodePort of apache-php service
+      shell: kubectl get svc apache-php -o jsonpath='{.spec.ports[0].nodePort}'
+      register: node_port
+
+    - name: Get Minikube IP
+      shell: minikube ip
+      register: minikube_ip
+
+    - name: Show URL
+      debug:
+        msg: "Access Apache at http://{{ minikube_ip.stdout }}:{{ node_port.stdout }}"
+
+    - name: Test Apache service from inside Minikube
+      shell: minikube ssh -- curl -s http://localhost:30080
+      register: internal_test
+
+    - name: Display internal curl output from Minikube
+      debug:
+        msg: "{{ internal_test.stdout }}"
+

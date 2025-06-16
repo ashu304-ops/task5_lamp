@@ -1,0 +1,26 @@
+FROM debian:bullseye-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        mariadb-server \
+        mariadb-client \
+        socat \
+        ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create necessary dirs
+RUN mkdir -p /var/run/mysqld && \
+    chown -R mysql:mysql /var/run/mysqld /var/lib/mysql
+
+# Set environment variables for initial setup
+ENV MYSQL_ROOT_PASSWORD=rootpass
+
+# Expose MySQL port
+EXPOSE 3306
+
+# Run MariaDB server
+CMD ["mysqld_safe"]
